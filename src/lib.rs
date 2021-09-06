@@ -1,9 +1,11 @@
 //!  - Dual Balanced Ternary Math
 //! table of digits
 //!
+//! ```cirru
 //!   6 1 8
 //!   7 5 3
 //!   2 9 4
+//! ```
 
 pub mod complex;
 pub mod digit;
