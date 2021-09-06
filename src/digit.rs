@@ -1,6 +1,7 @@
 use crate::complex::ComplextXy;
+use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum DualBalancedTernaryDigit {
   Dbt1,
   Dbt2,
@@ -280,3 +281,38 @@ impl DualBalancedTernaryDigit {
     }
   }
 }
+
+impl Hash for DualBalancedTernaryDigit {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    "DualBalancedTernaryDigit".hash(state);
+    match self {
+      Dbt1 => 1.hash(state),
+      Dbt2 => 2.hash(state),
+      Dbt3 => 3.hash(state),
+      Dbt4 => 4.hash(state),
+      Dbt5 => 5.hash(state),
+      Dbt6 => 6.hash(state),
+      Dbt7 => 7.hash(state),
+      Dbt8 => 8.hash(state),
+      Dbt9 => 9.hash(state),
+    }
+  }
+}
+
+impl PartialEq for DualBalancedTernaryDigit {
+  fn eq(&self, other: &Self) -> bool {
+    matches!(
+      (self.to_owned(), other.to_owned()),
+      (Dbt1, Dbt1)
+        | (Dbt2, Dbt2)
+        | (Dbt3, Dbt3)
+        | (Dbt4, Dbt4)
+        | (Dbt5, Dbt5)
+        | (Dbt6, Dbt6)
+        | (Dbt7, Dbt7)
+        | (Dbt8, Dbt8)
+        | (Dbt9, Dbt9)
+    )
+  }
+}
+impl Eq for DualBalancedTernaryDigit {}
