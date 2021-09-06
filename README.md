@@ -1,4 +1,4 @@
-## Dual Balanced Ternary Calculator
+## Dual Balanced Ternary Arithmetic
 
 > Migrated from https://github.com/dual-balanced-ternary/dual-balanced-ternary.nim
 

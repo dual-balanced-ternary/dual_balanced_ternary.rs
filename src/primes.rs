@@ -42,6 +42,7 @@ impl fmt::Display for DualBalancedTernaryDigit {
   }
 }
 
+/// uses `&1.2` to write. notice `5` is the zero point
 impl fmt::Display for DualBalancedTernary {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     if self.integral.is_empty() && self.fractional.is_empty() {
@@ -123,7 +124,7 @@ impl DualBalancedTernary {
         b.integral[idx as usize] = d;
         b
       } else {
-        let (unit, carry) = self.integral[idx as usize].add_digits(d);
+        let (carry, unit) = self.integral[idx as usize].add_digits(d);
         b.integral[idx as usize] = unit;
         // echo "sum: ", sum
         if carry != Dbt5 {
@@ -144,7 +145,7 @@ impl DualBalancedTernary {
         b.fractional[f_idx as usize] = d;
         b
       } else {
-        let (unit, carry) = self.fractional[f_idx as usize].add_digits(d);
+        let (carry, unit) = self.fractional[f_idx as usize].add_digits(d);
         b.fractional[f_idx as usize] = unit;
         if carry != Dbt5 {
           // echo "has carry in fractional: ", sum
@@ -156,7 +157,7 @@ impl DualBalancedTernary {
     }
   }
 
-  // keep value of 1 direction and flip 3 direction
+  /// keep value of 1 direction and flip 3 direction
   pub fn conjugate(&self) -> DualBalancedTernary {
     let mut result = self.to_owned();
     for (idx, item) in result.integral.to_owned().iter().enumerate() {
@@ -168,8 +169,8 @@ impl DualBalancedTernary {
     result
   }
 
-  // value at y direction only contains 1, 5, 9,
-  // value at x direction only contains 7, 5, 3.
+  /// value at y direction only contains 1, 5, 9,
+  /// value at x direction only contains 7, 5, 3.
   pub fn split_yx(&self) -> (DualBalancedTernary, DualBalancedTernary) {
     let mut x: DualBalancedTernary = self.to_owned();
     let mut y: DualBalancedTernary = self.to_owned();
@@ -229,21 +230,21 @@ impl DualBalancedTernary {
     }
   }
 
-  // only works for paths containing 1,5,9
-  pub fn greater_than(self, b: DualBalancedTernary) -> bool {
+  /// only works for paths containing 1,5,9
+  pub fn linear_greater_than(self, b: DualBalancedTernary) -> bool {
     let delta = self - b;
     let (digit, _) = delta.get_first_digit();
     digit == Dbt1
   }
 
-  // only works for paths containing 1,5,9
-  pub fn littler_than(self, b: DualBalancedTernary) -> bool {
+  /// only works for paths containing 1,5,9
+  pub fn linear_littler_than(self, b: DualBalancedTernary) -> bool {
     let delta = self - b;
     let (digit, _) = delta.get_first_digit();
     digit == Dbt9
   }
 
-  // ternary divide only handles values consisted of 1,5,9
+  /// ternary divide only handles values consisted of 1,5,9
   pub fn linear_divide(&self, other: DualBalancedTernary) -> DualBalancedTernary {
     let mut result = DualBalancedTernary {
       integral: vec![],
@@ -368,17 +369,18 @@ impl DualBalancedTernary {
     true
   }
 
+  // convert to x,y values
   pub fn to_float(&self) -> ComplextXy {
     let mut result = ComplextXy { x: 0.0, y: 0.0 };
     let mut unit: f64 = 1.0;
-    for (_idx, item) in self.integral.iter().enumerate() {
+    for item in self.integral.to_owned() {
       let v = item.to_float();
       result.x += v.x * unit;
       result.y += v.y * unit;
-      unit += 3.0;
+      unit *= 3.0;
     }
     unit = 1.0;
-    for (_idx, item) in self.fractional.iter().enumerate() {
+    for item in self.fractional.to_owned() {
       unit /= 3.0;
       let v = item.to_float();
       result.x += v.x * unit;
@@ -532,7 +534,7 @@ impl Mul for DualBalancedTernary {
     };
     for (a_idx, a_item) in self.pairs() {
       for (b_idx, b_item) in other.pairs() {
-        let (unit, carry) = a_item.mutiply_digits(b_item);
+        let (carry, unit) = a_item.mutiply_digits(b_item);
         result = result.add_at(a_idx + b_idx, unit);
         if carry != Dbt5 {
           result = result.add_at(a_idx + b_idx + 1, carry);

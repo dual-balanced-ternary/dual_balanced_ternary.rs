@@ -1,7 +1,13 @@
 [package]
 name = "dual_balanced_ternary"
-version = "0.1.0"
+version = "0.1.0-a1"
 edition = "2018"
+license = "MIT"
+description = "Dual Balanced Ternary Arithmetic"
+homepage = "https://github.com/dual-balanced-ternary"
+documentation = "https://docs.rs/crate/dual_balanced_ternary/"
+repository = "https://github.com/dual-balanced-ternary"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
