@@ -388,6 +388,98 @@ impl DualBalancedTernary {
     }
     result
   }
+
+  /// buffer format
+  /// [magic 3]+[integral length]+[integral pairs]+[fractional pairs]
+  pub fn to_buffer(&self) -> Result<Vec<u8>, String> {
+    let int_len = self.integral.len();
+    if int_len < 256 {
+      let mut buf: Vec<u8> = vec![3, int_len as u8];
+      // for integral part, put space 5 at head
+      let mut halfed = false;
+      let mut prev: u8 = 0;
+      for x in &self.integral {
+        if halfed {
+          prev += x.to_u8();
+          buf.push(prev.to_owned());
+          halfed = false;
+        } else {
+          prev = x.to_u8() << 4;
+          halfed = true;
+        }
+      }
+      if halfed {
+        prev += 5;
+        buf.push(prev.to_owned());
+        halfed = false;
+      }
+
+      // expected handled by pair
+      assert_eq!(buf.len(), ((int_len + 1) >> 1) + 2);
+
+      // for integral part, put space 5 at tail
+      for x in &self.fractional {
+        if halfed {
+          prev += x.to_u8();
+          buf.push(prev.to_owned());
+          halfed = false;
+        } else {
+          prev = x.to_u8() << 4;
+          halfed = true;
+        }
+      }
+      if halfed {
+        prev += 5;
+        buf.push(prev.to_owned());
+      }
+
+      Ok(buf)
+    } else {
+      Err(format!("integral part too long: {}", int_len))
+    }
+  }
+
+  /// buffer format
+  /// [magic 3]+[integral length]+[integral pairs]+[fractional pairs]
+  pub fn from_buffer(buf: Vec<u8>) -> Result<Self, String> {
+    if buf.len() < 2 {
+      return Err(String::from("dbt buffer expected >=2 u8 numbers"));
+    }
+    if buf[0] != 3 {
+      return Err(String::from("dbt magic number should be 3"));
+    }
+
+    let int_range = (buf[1] + 1) as usize >> 1;
+
+    if buf.len() < (int_range + 2) {
+      return Err(String::from("dbt buffer length smaller than integral size"));
+    }
+    let mut integral: Vec<DualBalancedTernaryDigit> = vec![];
+    let mut fractional: Vec<DualBalancedTernaryDigit> = vec![];
+
+    // println!("buffer: {:?}", buf);
+    for (idx, x) in buf.iter().enumerate() {
+      if idx < 2 {
+        continue;
+      }
+      // println!("reading: {} {}", idx, x);
+      if idx < (int_range + 2) as usize {
+        integral.push(DualBalancedTernaryDigit::from_u8((x & 0b11110000) >> 4)?);
+        integral.push(DualBalancedTernaryDigit::from_u8(x & 0b00001111)?);
+      } else {
+        fractional.push(DualBalancedTernaryDigit::from_u8((x & 0b11110000) >> 4)?);
+        fractional.push(DualBalancedTernaryDigit::from_u8(x & 0b00001111)?);
+      }
+    }
+
+    Ok(
+      Self {
+        integral,
+        fractional,
+      }
+      .strip_empty_tails(),
+    )
+  }
 }
 
 pub fn parse_ternary_digit(s: char) -> Result<DualBalancedTernaryDigit, String> {
