@@ -19,6 +19,35 @@ use DualBalancedTernaryDigit::*;
 pub type DigitsPair = (DualBalancedTernaryDigit, DualBalancedTernaryDigit);
 
 impl DualBalancedTernaryDigit {
+  pub fn to_u8(&self) -> u8 {
+    match self {
+      Dbt1 => 1,
+      Dbt2 => 2,
+      Dbt3 => 3,
+      Dbt4 => 4,
+      Dbt5 => 5,
+      Dbt6 => 6,
+      Dbt7 => 7,
+      Dbt8 => 8,
+      Dbt9 => 9,
+    }
+  }
+
+  pub fn from_u8(x: u8) -> Result<Self, String> {
+    match x {
+      1 => Ok(Dbt1),
+      2 => Ok(Dbt2),
+      3 => Ok(Dbt3),
+      4 => Ok(Dbt4),
+      5 => Ok(Dbt5),
+      6 => Ok(Dbt6),
+      7 => Ok(Dbt7),
+      8 => Ok(Dbt8),
+      9 => Ok(Dbt9),
+      _ => Err(format!("unknown digit for dbt: {}", x)),
+    }
+  }
+
   pub fn negate(&self) -> DualBalancedTernaryDigit {
     match self {
       Dbt1 => Dbt9,
