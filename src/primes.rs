@@ -390,11 +390,11 @@ impl DualBalancedTernary {
   }
 
   /// buffer format
-  /// [magic 3]+[integral length]+[integral pairs]+[fractional pairs]
+  /// [integral length]+[integral pairs]+[fractional pairs]
   pub fn to_buffer(&self) -> Result<Vec<u8>, String> {
     let int_len = self.integral.len();
     if int_len < 256 {
-      let mut buf: Vec<u8> = vec![3, int_len as u8];
+      let mut buf: Vec<u8> = vec![int_len as u8];
       // for integral part, put space 5 at head
       let mut halfed = false;
       let mut prev: u8 = 0;
@@ -415,7 +415,7 @@ impl DualBalancedTernary {
       }
 
       // expected handled by pair
-      assert_eq!(buf.len(), ((int_len + 1) >> 1) + 2);
+      assert_eq!(buf.len(), ((int_len + 1) >> 1) + 1);
 
       // for integral part, put space 5 at tail
       for x in &self.fractional {
@@ -440,18 +440,15 @@ impl DualBalancedTernary {
   }
 
   /// buffer format
-  /// [magic 3]+[integral length]+[integral pairs]+[fractional pairs]
+  /// [integral length]+[integral pairs]+[fractional pairs]
   pub fn from_buffer(buf: Vec<u8>) -> Result<Self, String> {
-    if buf.len() < 2 {
+    if buf.is_empty() {
       return Err(String::from("dbt buffer expected >=2 u8 numbers"));
     }
-    if buf[0] != 3 {
-      return Err(String::from("dbt magic number should be 3"));
-    }
 
-    let int_range = (buf[1] + 1) as usize >> 1;
+    let int_range = (buf[0] + 1) as usize >> 1;
 
-    if buf.len() < (int_range + 2) {
+    if buf.len() < (int_range + 1) {
       return Err(String::from("dbt buffer length smaller than integral size"));
     }
     let mut integral: Vec<DualBalancedTernaryDigit> = vec![];
@@ -459,11 +456,11 @@ impl DualBalancedTernary {
 
     // println!("buffer: {:?}", buf);
     for (idx, x) in buf.iter().enumerate() {
-      if idx < 2 {
+      if idx < 1 {
         continue;
       }
       // println!("reading: {} {}", idx, x);
-      if idx < (int_range + 2) as usize {
+      if idx < (int_range + 1) as usize {
         integral.push(DualBalancedTernaryDigit::from_u8((x & 0b11110000) >> 4)?);
         integral.push(DualBalancedTernaryDigit::from_u8(x & 0b00001111)?);
       } else {
