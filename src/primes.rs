@@ -441,7 +441,7 @@ impl DualBalancedTernary {
 
   /// buffer format
   /// [integral length]+[integral pairs]+[fractional pairs]
-  pub fn from_buffer(buf: Vec<u8>) -> Result<Self, String> {
+  pub fn from_buffer(buf: &[u8]) -> Result<Self, String> {
     if buf.is_empty() {
       return Err(String::from("dbt buffer expected >=2 u8 numbers"));
     }
