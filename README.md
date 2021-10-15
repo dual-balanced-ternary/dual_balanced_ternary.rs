@@ -2,6 +2,10 @@
 
 > Migrated from https://github.com/dual-balanced-ternary/dual-balanced-ternary.nim
 
+![crate](https://img.shields.io/crates/v/dual-balanced-ternary)
+
+[Rust Docs](https://docs.rs/dual_balanced_ternary/).
+
 ### Usages
 
 ```rs
