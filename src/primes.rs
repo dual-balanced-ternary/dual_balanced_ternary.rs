@@ -392,13 +392,15 @@ impl DualBalancedTernary {
   /// buffer format
   /// [integral length]+[integral pairs]+[fractional pairs]
   pub fn to_buffer(&self) -> Result<Vec<u8>, String> {
-    let int_len = self.integral.len();
+    // make sure no extra `5`s is generated into buffer
+    let v = self.to_owned().strip_empty_tails();
+    let int_len = v.integral.len();
     if int_len < 256 {
       let mut buf: Vec<u8> = vec![int_len as u8];
       // for integral part, put space 5 at head
       let mut halfed = false;
       let mut prev: u8 = 0;
-      for x in &self.integral {
+      for x in &v.integral {
         if halfed {
           prev += x.to_u8();
           buf.push(prev.to_owned());
@@ -418,7 +420,7 @@ impl DualBalancedTernary {
       assert_eq!(buf.len(), ((int_len + 1) >> 1) + 1);
 
       // for integral part, put space 5 at tail
-      for x in &self.fractional {
+      for x in &v.fractional {
         if halfed {
           prev += x.to_u8();
           buf.push(prev.to_owned());
