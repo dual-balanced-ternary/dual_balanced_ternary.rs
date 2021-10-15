@@ -32,5 +32,18 @@ fn to_buffer() -> Result<(), String> {
     DualBalancedTernary::from_buffer(&ternary("&3445647.674").to_buffer()?),
   );
 
+  assert_eq!(
+    DualBalancedTernary {
+      integral: vec![Dbt1, Dbt5],
+      fractional: vec![Dbt1, Dbt5]
+    }
+    .to_buffer(),
+    DualBalancedTernary {
+      integral: vec![Dbt1],
+      fractional: vec![Dbt1]
+    }
+    .to_buffer(),
+  );
+
   Ok(())
 }

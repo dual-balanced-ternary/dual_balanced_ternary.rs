@@ -392,9 +392,8 @@ impl DualBalancedTernary {
   /// buffer format
   /// [integral length]+[integral pairs]+[fractional pairs]
   pub fn to_buffer(&self) -> Result<Vec<u8>, String> {
-    let v = self.to_owned();
     // make sure no extra `5`s is generated into buffer
-    v.strip_empty_tails();
+    let v = self.to_owned().strip_empty_tails();
     let int_len = v.integral.len();
     if int_len < 256 {
       let mut buf: Vec<u8> = vec![int_len as u8];
