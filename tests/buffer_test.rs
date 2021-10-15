@@ -27,6 +27,10 @@ fn to_buffer() -> Result<(), String> {
     DualBalancedTernary::from_buffer(&ternary("&3445647.674").to_buffer()?),
     Ok(ternary("&3445647.674"))
   );
+  assert_eq!(
+    DualBalancedTernary::from_buffer(&ternary("&5553445647.674555").to_buffer()?),
+    DualBalancedTernary::from_buffer(&ternary("&3445647.674").to_buffer()?),
+  );
 
   Ok(())
 }
