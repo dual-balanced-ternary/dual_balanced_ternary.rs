@@ -90,3 +90,19 @@ pub fn create_dual_balanced_ternary_from_pair(x: f64, y: f64) -> DualBalancedTer
   }
   a + b
 }
+
+/// expose internal digits for inspecting
+pub fn dbt_digits(x: DualBalancedTernary) -> Vec<(i64, DualBalancedTernaryDigit)> {
+  let mut ys: Vec<(i64, DualBalancedTernaryDigit)> = vec![];
+  for idx in 0..x.integral.len() {
+    let i = x.integral.len() - idx - 1;
+    ys.push((i as i64, x.integral[i].to_owned()));
+  }
+
+  for (idx, n) in x.fractional.iter().enumerate() {
+    let i = -1 - idx as i64;
+    ys.push((i, n.to_owned()))
+  }
+
+  ys
+}
