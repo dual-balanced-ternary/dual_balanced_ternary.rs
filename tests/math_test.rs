@@ -1,7 +1,7 @@
-use dual_balanced_ternary::complex::ComplextXy;
-use dual_balanced_ternary::{
-  create_dual_balanced_ternary_from_pair, ternary, DualBalancedTernaryDigit::*,
-};
+extern crate dual_balanced_ternary;
+
+use dual_balanced_ternary::complex::ComplexXy;
+use dual_balanced_ternary::{ternary, DualBalancedTernary, DualBalancedTernaryDigit::*};
 
 #[test]
 fn equality() {
@@ -28,10 +28,10 @@ fn parse_and_format() {
 
 #[test]
 fn try_negate() {
-  assert_eq!(ternary("&1.1").negate(), ternary("&9.9"));
-  assert_eq!(ternary("&5").negate(), ternary("&5"));
-  assert_eq!(ternary("&4").negate(), ternary("&6"));
-  assert_eq!(ternary("&4.63").negate(), ternary("&6.47"));
+  assert_eq!(-ternary("&1.1"), ternary("&9.9"));
+  assert_eq!(-ternary("&5"), ternary("&5"));
+  assert_eq!(-ternary("&4"), ternary("&6"));
+  assert_eq!(-ternary("&4.63"), ternary("&6.47"));
 }
 
 #[test]
@@ -63,57 +63,30 @@ fn test_add() {
 
 #[test]
 fn test_complex() {
-  assert_eq!(ternary("&4").to_float(), ComplextXy { x: 1.0, y: -1.0 });
-  assert_eq!(ternary("&5").to_float(), ComplextXy { x: 0.0, y: 0.0 });
-  assert_eq!(ternary("&13").to_float(), ComplextXy { x: 1.0, y: 3.0 });
-  assert_eq!(ternary("&66").to_float(), ComplextXy { x: -4.0, y: 4.0 });
+  assert_eq!(ComplexXy::from(ternary("&4")), ComplexXy { x: 1.0, y: -1.0 });
+  assert_eq!(ComplexXy::from(ternary("&5")), ComplexXy { x: 0.0, y: 0.0 });
+  assert_eq!(ComplexXy::from(ternary("&13")), ComplexXy { x: 1.0, y: 3.0 });
+  assert_eq!(ComplexXy::from(ternary("&66")), ComplexXy { x: -4.0, y: 4.0 });
+  assert_eq!(ComplexXy::from(ternary("&.1")), ComplexXy { x: 0.0, y: 1.0 / 3.0 });
   assert_eq!(
-    ternary("&.1").to_float(),
-    ComplextXy {
-      x: 0.0,
-      y: 1.0 / 3.0
-    }
-  );
-  assert_eq!(
-    ternary("&.4").to_float(),
-    ComplextXy {
+    ComplexXy::from(ternary("&.4")),
+    ComplexXy {
       x: 1.0 / 3.0,
       y: -1.0 / 3.0
     }
   );
-  assert_eq!(
-    ternary("&.7").to_float(),
-    ComplextXy {
-      x: -1.0 / 3.0,
-      y: 0.0
-    }
-  );
+  assert_eq!(ComplexXy::from(ternary("&.7")), ComplexXy { x: -1.0 / 3.0, y: 0.0 });
 
-  assert_eq!(
-    create_dual_balanced_ternary_from_pair(4.0, 6.0),
-    ternary("&143")
-  );
-  assert_eq!(
-    create_dual_balanced_ternary_from_pair(4.0, 4.0),
-    ternary("&88")
-  );
-  assert_eq!(
-    create_dual_balanced_ternary_from_pair(-4.0, -4.0),
-    ternary("&22")
-  );
-  assert_eq!(
-    create_dual_balanced_ternary_from_pair(1.0, 7.0),
-    ternary("&198")
-  );
+  assert_eq!(DualBalancedTernary::new(4.0, 6.0), ternary("&143"));
+  assert_eq!(DualBalancedTernary::new(4.0, 4.0), ternary("&88"));
+  assert_eq!(DualBalancedTernary::new(-4.0, -4.0), ternary("&22"));
+  assert_eq!(DualBalancedTernary::new(1.0, 7.0), ternary("&198"));
 
-  println!("{}", create_dual_balanced_ternary_from_pair(1.1, 1.1));
-  println!("{}", create_dual_balanced_ternary_from_pair(1.2, -1.2));
-  println!("{}", create_dual_balanced_ternary_from_pair(-1.3, 1.3));
-  println!("{}", create_dual_balanced_ternary_from_pair(-1.4, -1.4));
-  assert_eq!(
-    create_dual_balanced_ternary_from_pair(0.0, 0.0),
-    ternary("&5")
-  );
+  println!("{}", DualBalancedTernary::new(1.1, 1.1));
+  println!("{}", DualBalancedTernary::new(1.2, -1.2));
+  println!("{}", DualBalancedTernary::new(-1.3, 1.3));
+  println!("{}", DualBalancedTernary::new(-1.4, -1.4));
+  assert_eq!(DualBalancedTernary::new(0.0, 0.0), ternary("&5"));
 }
 
 #[test]

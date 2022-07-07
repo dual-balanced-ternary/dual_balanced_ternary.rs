@@ -1,7 +1,6 @@
-use dual_balanced_ternary::complex::ComplextXy;
-use dual_balanced_ternary::{
-  create_dual_balanced_ternary_from_pair, dbt_digits, ternary, DualBalancedTernaryDigit::*,
-};
+extern crate dual_balanced_ternary;
+
+use dual_balanced_ternary::{dbt_digits, ternary, DualBalancedTernaryDigit::*};
 
 #[test]
 fn equality() {
