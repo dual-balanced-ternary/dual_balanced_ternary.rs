@@ -1,13 +1,14 @@
 use dual_balanced_ternary::{ternary, DualBalancedTernary};
+use std::convert::{TryFrom, TryInto};
 
 pub fn main() -> Result<(), String> {
-  println!("{:?}", ternary("&1.1").to_buffer());
-  println!("{:?}", ternary("&14.14").to_buffer());
+  println!("{:?}", TryInto::<Vec<u8>>::try_into(ternary("&1.1"))?);
+  println!("{:?}", TryInto::<Vec<u8>>::try_into(ternary("&14.14"))?);
 
-  println!("{:?}", DualBalancedTernary::from_buffer(&[1, 21, 21]));
-  println!("{:?}", DualBalancedTernary::from_buffer(&[1, 65, 20]));
+  println!("{:?}", DualBalancedTernary::try_from(&vec![1, 21, 21])?);
+  println!("{:?}", DualBalancedTernary::try_from(&vec![1, 65, 20]));
 
-  println!("TODO {:?}", ternary("&12.12").to_buffer()?);
+  println!("TODO {:?}", TryInto::<Vec<u8>>::try_into(ternary("&12.12"))?);
 
   Ok(())
 }
