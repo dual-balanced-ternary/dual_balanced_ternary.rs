@@ -93,9 +93,9 @@ impl TryFrom<f64> for DualBalancedTernary {
       let left = fractional_part.floor();
       if left == 0.0 {
         // nothing
-      } else if (left - 1.0).abs() < std::f64::EPSILON {
+      } else if (left - 1.0).abs() < f64::EPSILON {
         result = result.add_at(f_idx, Dbt3);
-      } else if (left - 2.0).abs() < std::f64::EPSILON {
+      } else if (left - 2.0).abs() < f64::EPSILON {
         result = result.add_at(f_idx + 1, Dbt3);
         result = result.add_at(f_idx, Dbt7);
       } else {
@@ -240,7 +240,7 @@ impl TryFrom<&Vec<u8>> for DualBalancedTernary {
         continue;
       }
       // println!("reading: {} {}", idx, x);
-      if idx < (int_range + 1) as usize {
+      if idx < int_range + 1 {
         integral.push(DualBalancedTernaryDigit::try_from((x & 0b11110000) >> 4)?);
         integral.push(DualBalancedTernaryDigit::try_from(x & 0b00001111)?);
       } else {
