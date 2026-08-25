@@ -1,6 +1,6 @@
 extern crate dual_balanced_ternary;
 
-use dual_balanced_ternary::{dbt_digits, ternary, DualBalancedTernaryDigit::*};
+use dual_balanced_ternary::{DualBalancedTernaryDigit::*, dbt_digits, ternary};
 
 #[test]
 fn equality() {

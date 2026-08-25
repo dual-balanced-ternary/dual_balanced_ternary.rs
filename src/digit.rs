@@ -1,299 +1,91 @@
-//! Digits for DBT, with 9 values, `5` at center, `1` at front
-use crate::complex::ComplexXy;
+//! The nine digits used by dual balanced ternary.
 
+use crate::complex::ComplexXy;
 use std::{
   convert::TryFrom,
   fmt,
-  hash::Hash,
   ops::{Add, Mul, Neg},
 };
 
-/// Digits
-/// ```cirru
+/// A digit in the centered 3×3 grid.
+///
+/// ```text
 /// 6 1 8
 /// 7 5 3
 /// 2 9 4
 /// ```
+///
+/// Digit `5` is zero, `1` is the multiplicative identity, and `3` is the
+/// quarter-turn unit corresponding to `i` under the map `(x, y) ↦ y + x·i`.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DualBalancedTernaryDigit {
-  /// ```cirru
-  /// _ 1 _
-  /// _ 5 _
-  /// _ _ _
-  /// ```
   Dbt1,
-  /// ```cirru
-  /// _ _ _
-  /// _ 5 _
-  /// 2 _ _
-  /// ```
   Dbt2,
-  /// ```cirru
-  /// _ _ _
-  /// _ 5 3
-  /// _ _ _
-  /// ```
   Dbt3,
-  /// ```cirru
-  /// _ _ _
-  /// _ 5 _
-  /// _ _ 4
-  /// ```
   Dbt4,
-  /// ```cirru
-  /// _ _ _
-  /// _ 5 _
-  /// _ _ _
-  /// ```
   Dbt5,
-  /// ```cirru
-  /// 6 _ _
-  /// _ 5 _
-  /// _ _ _
-  /// ```
   Dbt6,
-  /// ```cirru
-  /// _ _ _
-  /// 7 5 _
-  /// _ _ _
-  /// ```
   Dbt7,
-  /// ```cirru
-  /// _ _ 8
-  /// _ 5 _
-  /// _ _ _
-  /// ```
   Dbt8,
-  /// ```cirru
-  /// _ _ _
-  /// _ 5 _
-  /// _ 9 _
-  /// ```
   Dbt9,
 }
 
 use DualBalancedTernaryDigit::*;
 
+type DigitsPair = (DualBalancedTernaryDigit, DualBalancedTernaryDigit);
+
 impl fmt::Display for DualBalancedTernaryDigit {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    use DualBalancedTernaryDigit::*;
-    match self {
-      Dbt1 => write!(f, "1"),
-      Dbt2 => write!(f, "2"),
-      Dbt3 => write!(f, "3"),
-      Dbt4 => write!(f, "4"),
-      Dbt5 => write!(f, "5"),
-      Dbt6 => write!(f, "6"),
-      Dbt7 => write!(f, "7"),
-      Dbt8 => write!(f, "8"),
-      Dbt9 => write!(f, "9"),
-    }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", u8::from(*self))
+  }
+}
+
+/// Splits a component in `-2..=2` into `3 * carry + unit`.
+const fn balanced_component(value: i8) -> (i8, i8) {
+  match value {
+    -2 => (-1, 1),
+    -1 => (0, -1),
+    0 => (0, 0),
+    1 => (0, 1),
+    2 => (1, -1),
+    _ => panic!("balanced component is outside -2..=2"),
   }
 }
 
 impl Add for DualBalancedTernaryDigit {
   type Output = DigitsPair;
 
-  fn add(self, b: Self) -> Self::Output {
-    match self {
-      Dbt1 => match b {
-        Dbt1 => (Dbt1, Dbt9),
-        Dbt2 => (Dbt5, Dbt7),
-        Dbt3 => (Dbt5, Dbt8),
-        Dbt4 => (Dbt5, Dbt3),
-        Dbt5 => (Dbt5, Dbt1),
-        Dbt6 => (Dbt1, Dbt2),
-        Dbt7 => (Dbt5, Dbt6),
-        Dbt8 => (Dbt1, Dbt4),
-        Dbt9 => (Dbt5, Dbt5),
-      },
-      Dbt2 => match b {
-        Dbt1 => (Dbt5, Dbt7),
-        Dbt2 => (Dbt2, Dbt8),
-        Dbt3 => (Dbt5, Dbt9),
-        Dbt4 => (Dbt9, Dbt1),
-        Dbt5 => (Dbt5, Dbt2),
-        Dbt6 => (Dbt7, Dbt3),
-        Dbt7 => (Dbt7, Dbt4),
-        Dbt8 => (Dbt5, Dbt5),
-        Dbt9 => (Dbt9, Dbt6),
-      },
-      Dbt3 => match b {
-        Dbt1 => (Dbt5, Dbt8),
-        Dbt2 => (Dbt5, Dbt9),
-        Dbt3 => (Dbt3, Dbt7),
-        Dbt4 => (Dbt3, Dbt2),
-        Dbt5 => (Dbt5, Dbt3),
-        Dbt6 => (Dbt5, Dbt1),
-        Dbt7 => (Dbt5, Dbt5),
-        Dbt8 => (Dbt3, Dbt6),
-        Dbt9 => (Dbt5, Dbt4),
-      },
-      Dbt4 => match b {
-        Dbt1 => (Dbt5, Dbt3),
-        Dbt2 => (Dbt9, Dbt1),
-        Dbt3 => (Dbt3, Dbt2),
-        Dbt4 => (Dbt4, Dbt6),
-        Dbt5 => (Dbt5, Dbt4),
-        Dbt6 => (Dbt5, Dbt5),
-        Dbt7 => (Dbt5, Dbt9),
-        Dbt8 => (Dbt3, Dbt7),
-        Dbt9 => (Dbt9, Dbt8),
-      },
-      Dbt5 => (Dbt5, b),
-      Dbt6 => match b {
-        Dbt1 => (Dbt1, Dbt2),
-        Dbt2 => (Dbt7, Dbt3),
-        Dbt3 => (Dbt5, Dbt1),
-        Dbt4 => (Dbt5, Dbt5),
-        Dbt5 => (Dbt5, Dbt6),
-        Dbt6 => (Dbt6, Dbt4),
-        Dbt7 => (Dbt7, Dbt8),
-        Dbt8 => (Dbt1, Dbt9),
-        Dbt9 => (Dbt5, Dbt7),
-      },
-      Dbt7 => match b {
-        Dbt1 => (Dbt5, Dbt6),
-        Dbt2 => (Dbt7, Dbt4),
-        Dbt3 => (Dbt5, Dbt5),
-        Dbt4 => (Dbt5, Dbt9),
-        Dbt5 => (Dbt5, Dbt7),
-        Dbt6 => (Dbt7, Dbt8),
-        Dbt7 => (Dbt7, Dbt3),
-        Dbt8 => (Dbt5, Dbt1),
-        Dbt9 => (Dbt5, Dbt2),
-      },
-      Dbt8 => match b {
-        Dbt1 => (Dbt1, Dbt4),
-        Dbt2 => (Dbt5, Dbt5),
-        Dbt3 => (Dbt3, Dbt6),
-        Dbt4 => (Dbt3, Dbt7),
-        Dbt5 => (Dbt5, Dbt8),
-        Dbt6 => (Dbt1, Dbt9),
-        Dbt7 => (Dbt5, Dbt1),
-        Dbt8 => (Dbt8, Dbt2),
-        Dbt9 => (Dbt5, Dbt3),
-      },
-      Dbt9 => match b {
-        Dbt1 => (Dbt5, Dbt5),
-        Dbt2 => (Dbt9, Dbt6),
-        Dbt3 => (Dbt5, Dbt4),
-        Dbt4 => (Dbt9, Dbt8),
-        Dbt5 => (Dbt5, Dbt9),
-        Dbt6 => (Dbt5, Dbt7),
-        Dbt7 => (Dbt5, Dbt2),
-        Dbt8 => (Dbt5, Dbt3),
-        Dbt9 => (Dbt9, Dbt1),
-      },
-    }
+  fn add(self, other: Self) -> Self::Output {
+    let (ax, ay) = self.coordinates();
+    let (bx, by) = other.coordinates();
+    let (carry_x, unit_x) = balanced_component(ax + bx);
+    let (carry_y, unit_y) = balanced_component(ay + by);
+    (Self::from_coordinates(carry_x, carry_y), Self::from_coordinates(unit_x, unit_y))
   }
 }
 
 impl Mul for DualBalancedTernaryDigit {
   type Output = DigitsPair;
-  fn mul(self, b: Self) -> Self::Output {
-    match self {
-      Dbt1 => (Dbt5, b),
-      Dbt2 => match b {
-        Dbt1 => (Dbt5, Dbt2),
-        Dbt2 => (Dbt3, Dbt7),
-        Dbt3 => (Dbt5, Dbt6),
-        Dbt4 => (Dbt1, Dbt9),
-        Dbt5 => (Dbt5, Dbt5),
-        Dbt6 => (Dbt9, Dbt1),
-        Dbt7 => (Dbt5, Dbt4),
-        Dbt8 => (Dbt7, Dbt3),
-        Dbt9 => (Dbt5, Dbt8),
-      },
-      Dbt3 => (Dbt5, b.rotate3()),
-      Dbt4 => match b {
-        Dbt1 => (Dbt5, Dbt4),
-        Dbt2 => (Dbt1, Dbt9),
-        Dbt3 => (Dbt5, Dbt2),
-        Dbt4 => (Dbt7, Dbt3),
-        Dbt5 => (Dbt5, Dbt5),
-        Dbt6 => (Dbt3, Dbt7),
-        Dbt7 => (Dbt5, Dbt8),
-        Dbt8 => (Dbt9, Dbt1),
-        Dbt9 => (Dbt5, Dbt6),
-      },
-      Dbt5 => (Dbt5, Dbt5),
-      Dbt6 => match b {
-        Dbt1 => (Dbt5, Dbt6),
-        Dbt2 => (Dbt9, Dbt1),
-        Dbt3 => (Dbt5, Dbt8),
-        Dbt4 => (Dbt3, Dbt7),
-        Dbt5 => (Dbt5, Dbt5),
-        Dbt6 => (Dbt7, Dbt3),
-        Dbt7 => (Dbt5, Dbt2),
-        Dbt8 => (Dbt1, Dbt9),
-        Dbt9 => (Dbt5, Dbt4),
-      },
-      Dbt7 => (Dbt5, b.rotate7()),
-      Dbt8 => match b {
-        Dbt1 => (Dbt1, Dbt8),
-        Dbt2 => (Dbt7, Dbt3),
-        Dbt3 => (Dbt5, Dbt4),
-        Dbt4 => (Dbt9, Dbt1),
-        Dbt5 => (Dbt5, Dbt5),
-        Dbt6 => (Dbt1, Dbt9),
-        Dbt7 => (Dbt5, Dbt6),
-        Dbt8 => (Dbt3, Dbt7),
-        Dbt9 => (Dbt5, Dbt2),
-      },
-      Dbt9 => (Dbt5, -b),
-    }
+
+  fn mul(self, other: Self) -> Self::Output {
+    let (ax, ay) = self.coordinates();
+    let (bx, by) = other.coordinates();
+
+    // The forward y-axis is the real axis, so (x, y) represents y + x*i.
+    let product_x = ay * bx + ax * by;
+    let product_y = ay * by - ax * bx;
+    let (carry_x, unit_x) = balanced_component(product_x);
+    let (carry_y, unit_y) = balanced_component(product_y);
+    (Self::from_coordinates(carry_x, carry_y), Self::from_coordinates(unit_x, unit_y))
   }
 }
-
-// pub const fractional_base: i64 = 1 / 3;
-
-impl TryFrom<(i64, i64)> for DualBalancedTernaryDigit {
-  type Error = String;
-
-  fn try_from(value: (i64, i64)) -> Result<Self, Self::Error> {
-    let (x, y) = value;
-    match x {
-      -1 => match y {
-        -1 => Ok(Dbt2),
-        0 => Ok(Dbt7),
-        1 => Ok(Dbt6),
-        _ => Err(format!("unexpected y: {}", y)),
-      },
-      0 => match y {
-        -1 => Ok(Dbt9),
-        0 => Ok(Dbt5),
-        1 => Ok(Dbt1),
-        _ => Err(format!("unexpected y: {}", y)),
-      },
-      1 => match y {
-        -1 => Ok(Dbt8),
-        0 => Ok(Dbt3),
-        1 => Ok(Dbt4),
-        _ => Err(format!("unexpected y: {}", y)),
-      },
-      _ => Err(format!("unexpected x: {}", x)),
-    }
-  }
-}
-
-// an alias
-type DigitsPair = (DualBalancedTernaryDigit, DualBalancedTernaryDigit);
 
 impl Neg for DualBalancedTernaryDigit {
-  type Output = DualBalancedTernaryDigit;
+  type Output = Self;
+
   fn neg(self) -> Self::Output {
-    match self {
-      Dbt1 => Dbt9,
-      Dbt2 => Dbt8,
-      Dbt3 => Dbt7,
-      Dbt4 => Dbt6,
-      Dbt5 => Dbt5,
-      Dbt6 => Dbt4,
-      Dbt7 => Dbt3,
-      Dbt8 => Dbt2,
-      Dbt9 => Dbt1,
-    }
+    let (x, y) = self.coordinates();
+    Self::from_coordinates(-x, -y)
   }
 }
 
@@ -313,29 +105,11 @@ impl From<DualBalancedTernaryDigit> for u8 {
   }
 }
 
-// 1 points at y direction, 3 points at x direction
-impl From<DualBalancedTernaryDigit> for ComplexXy {
-  fn from(v: DualBalancedTernaryDigit) -> Self {
-    use DualBalancedTernaryDigit::*;
-
-    match v {
-      Dbt1 => ComplexXy { x: 0.0, y: 1.0 },
-      Dbt2 => ComplexXy { x: -1.0, y: -1.0 },
-      Dbt3 => ComplexXy { x: 1.0, y: 0.0 },
-      Dbt4 => ComplexXy { x: 1.0, y: -1.0 },
-      Dbt5 => ComplexXy { x: 0.0, y: 0.0 },
-      Dbt6 => ComplexXy { x: -1.0, y: 1.0 },
-      Dbt7 => ComplexXy { x: -1.0, y: 0.0 },
-      Dbt8 => ComplexXy { x: 1.0, y: 1.0 },
-      Dbt9 => ComplexXy { x: 0.0, y: -1.0 },
-    }
-  }
-}
-
 impl TryFrom<u8> for DualBalancedTernaryDigit {
   type Error = String;
-  fn try_from(x: u8) -> Result<Self, Self::Error> {
-    match x {
+
+  fn try_from(value: u8) -> Result<Self, Self::Error> {
+    match value {
       1 => Ok(Dbt1),
       2 => Ok(Dbt2),
       3 => Ok(Dbt3),
@@ -345,129 +119,94 @@ impl TryFrom<u8> for DualBalancedTernaryDigit {
       7 => Ok(Dbt7),
       8 => Ok(Dbt8),
       9 => Ok(Dbt9),
-      _ => Err(format!("unknown digit for dbt: {}", x)),
+      _ => Err(format!("unknown DBT digit: {value}")),
     }
   }
 }
 
+impl TryFrom<(i64, i64)> for DualBalancedTernaryDigit {
+  type Error = String;
+
+  fn try_from((x, y): (i64, i64)) -> Result<Self, Self::Error> {
+    if (-1..=1).contains(&x) && (-1..=1).contains(&y) {
+      Ok(Self::from_coordinates(x as i8, y as i8))
+    } else {
+      Err(format!("digit coordinates must be in -1..=1, got ({x}, {y})"))
+    }
+  }
+}
+
+impl From<DualBalancedTernaryDigit> for ComplexXy {
+  fn from(value: DualBalancedTernaryDigit) -> Self {
+    let (x, y) = value.coordinates();
+    Self::new(f64::from(x), f64::from(y))
+  }
+}
+
 impl DualBalancedTernaryDigit {
-  /// ```cirru
-  /// 6 1 8
-  /// 7 5 3
-  /// 2 9 4
-  /// ```
-  /// into
-  /// ```cirru
-  /// 2 9 4
-  /// 7 5 3
-  /// 6 1 8
-  /// ```
-  pub fn flip_front_back(&self) -> DualBalancedTernaryDigit {
+  /// Cartesian coordinates `(x, y)` of this digit in the 3×3 grid.
+  pub const fn coordinates(self) -> (i8, i8) {
     match self {
-      Dbt1 => Dbt9,
-      Dbt2 => Dbt6,
-      Dbt3 => Dbt7,
-      Dbt4 => Dbt8,
-      Dbt5 => Dbt5,
-      Dbt6 => Dbt2,
-      Dbt7 => Dbt7,
-      Dbt8 => Dbt4,
-      Dbt9 => Dbt1,
+      Dbt1 => (0, 1),
+      Dbt2 => (-1, -1),
+      Dbt3 => (1, 0),
+      Dbt4 => (1, -1),
+      Dbt5 => (0, 0),
+      Dbt6 => (-1, 1),
+      Dbt7 => (-1, 0),
+      Dbt8 => (1, 1),
+      Dbt9 => (0, -1),
     }
   }
 
-  /// ```cirru
-  /// 6 1 8
-  /// 7 5 3
-  /// 2 9 4
-  /// ```
-  /// into
-  /// ```cirru
-  /// 8 1 6
-  /// 3 5 7
-  /// 4 9 2
-  /// ```
-  pub fn flip_left_right(&self) -> DualBalancedTernaryDigit {
-    match self {
-      Dbt1 => Dbt1,
-      Dbt2 => Dbt4,
-      Dbt3 => Dbt7,
-      Dbt4 => Dbt2,
-      Dbt5 => Dbt5,
-      Dbt6 => Dbt8,
-      Dbt7 => Dbt3,
-      Dbt8 => Dbt6,
-      Dbt9 => Dbt9,
+  const fn from_coordinates(x: i8, y: i8) -> Self {
+    match (x, y) {
+      (0, 1) => Dbt1,
+      (-1, -1) => Dbt2,
+      (1, 0) => Dbt3,
+      (1, -1) => Dbt4,
+      (0, 0) => Dbt5,
+      (-1, 1) => Dbt6,
+      (-1, 0) => Dbt7,
+      (1, 1) => Dbt8,
+      (0, -1) => Dbt9,
+      _ => panic!("DBT digit coordinate is outside -1..=1"),
     }
   }
 
-  /// clockwise rotation
-  pub fn rotate3(&self) -> DualBalancedTernaryDigit {
-    match self {
-      Dbt1 => Dbt3,
-      Dbt2 => Dbt6,
-      Dbt3 => Dbt9,
-      Dbt4 => Dbt2,
-      Dbt5 => Dbt5,
-      Dbt6 => Dbt8,
-      Dbt7 => Dbt1,
-      Dbt8 => Dbt4,
-      Dbt9 => Dbt7,
-    }
+  /// Reflects the digit across the horizontal axis.
+  pub fn flip_front_back(&self) -> Self {
+    let (x, y) = self.coordinates();
+    Self::from_coordinates(x, -y)
   }
 
-  /// anti-clockwise rotation
-  pub fn rotate7(&self) -> DualBalancedTernaryDigit {
-    match self {
-      Dbt1 => Dbt7,
-      Dbt2 => Dbt4,
-      Dbt3 => Dbt1,
-      Dbt4 => Dbt8,
-      Dbt5 => Dbt5,
-      Dbt6 => Dbt2,
-      Dbt7 => Dbt9,
-      Dbt8 => Dbt6,
-      Dbt9 => Dbt3,
-    }
+  /// Reflects the digit across the vertical axis (complex conjugation).
+  pub fn flip_left_right(&self) -> Self {
+    let (x, y) = self.coordinates();
+    Self::from_coordinates(-x, y)
   }
 
-  /// ```cirru
-  /// 6 1 8
-  /// 7 5 3
-  /// 2 9 4
-  /// ```
-  /// into
-  /// ```cirru
-  /// 4 3 8
-  /// 9 5 1
-  /// 2 7 6
-  /// ```
-  pub fn flip_xy(&self) -> DualBalancedTernaryDigit {
-    match self {
-      Dbt1 => Dbt3,
-      Dbt2 => Dbt2,
-      Dbt3 => Dbt1,
-      Dbt4 => Dbt6,
-      Dbt5 => Dbt5,
-      Dbt6 => Dbt4,
-      Dbt7 => Dbt9,
-      Dbt8 => Dbt8,
-      Dbt9 => Dbt7,
-    }
+  /// Rotates the digit clockwise by 90 degrees.
+  pub fn rotate3(&self) -> Self {
+    let (x, y) = self.coordinates();
+    Self::from_coordinates(y, -x)
   }
 
-  /// split a digit into 2 linear digits(consists of &1, &5, &9)
+  /// Rotates the digit counter-clockwise by 90 degrees.
+  pub fn rotate7(&self) -> Self {
+    let (x, y) = self.coordinates();
+    Self::from_coordinates(-y, x)
+  }
+
+  /// Reflects the digit across the `x = y` diagonal.
+  pub fn flip_xy(&self) -> Self {
+    let (x, y) = self.coordinates();
+    Self::from_coordinates(y, x)
+  }
+
+  /// Splits a digit into `(y_axis, x_axis)` linear components.
   pub fn split_yx(&self) -> DigitsPair {
-    match self {
-      Dbt1 => (Dbt1, Dbt5),
-      Dbt2 => (Dbt9, Dbt7),
-      Dbt3 => (Dbt5, Dbt3),
-      Dbt4 => (Dbt9, Dbt3),
-      Dbt5 => (Dbt5, Dbt5),
-      Dbt6 => (Dbt1, Dbt7),
-      Dbt7 => (Dbt5, Dbt7),
-      Dbt8 => (Dbt1, Dbt3),
-      Dbt9 => (Dbt9, Dbt5),
-    }
+    let (x, y) = self.coordinates();
+    (Self::from_coordinates(0, y), Self::from_coordinates(x, 0))
   }
 }
