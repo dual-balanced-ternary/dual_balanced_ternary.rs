@@ -1,4 +1,4 @@
-//!  - Dual Balanced Ternary Arithmetic
+//! Dual Balanced Ternary Arithmetic
 //!
 //! Dual balanced ternary(DBT) is an extension to balanced ternary in 2D space.
 //! Unit values of DBT is has a layout like a magic square, where `1` is the front direction.
@@ -29,20 +29,33 @@
 //! = (* &3 &7) &5
 //! ```
 //!
-//! The math is roughly equal to Complex numbers, expect for that its identity value is `1` pointing at at front.
+//! Algebraically this is a radix-3 representation of Gaussian numbers. The
+//! digit `1` is the multiplicative identity and points forward; under the
+//! standard complex convention, a grid coordinate `(x, y)` represents
+//! `y + x·i`.
 
 pub mod complex;
 pub mod digit;
 pub mod primes;
 
 pub use digit::DualBalancedTernaryDigit;
-pub use primes::{DualBalancedTernary, DIV_PRECISION};
+pub use primes::{DIV_PRECISION, DualBalancedTernary};
 
 use std::str::FromStr;
 
-/// an alias for quick creating a DualBalancedTernary, might fail
+/// Convenience parser for literals known to be valid.
+///
+/// # Panics
+///
+/// Panics when `s` is not a valid DBT literal. Use [`try_ternary`] for
+/// untrusted input.
 pub fn ternary(s: &str) -> DualBalancedTernary {
-  DualBalancedTernary::from_str(s).unwrap()
+  try_ternary(s).expect("invalid dual balanced ternary literal")
+}
+
+/// Parses a DBT literal such as `&18.3`.
+pub fn try_ternary(s: &str) -> Result<DualBalancedTernary, String> {
+  DualBalancedTernary::from_str(s)
 }
 
 /// expose internal digits for inspecting
@@ -50,12 +63,12 @@ pub fn dbt_digits(x: DualBalancedTernary) -> Vec<(i64, DualBalancedTernaryDigit)
   let mut ys: Vec<(i64, DualBalancedTernaryDigit)> = vec![];
   for idx in 0..x.integral.len() {
     let i = x.integral.len() - idx - 1;
-    ys.push((i as i64, x.integral[i].to_owned()));
+    ys.push((i as i64, x.integral[i]));
   }
 
   for (idx, n) in x.fractional.iter().enumerate() {
     let i = -1 - idx as i64;
-    ys.push((i, n.to_owned()))
+    ys.push((i, *n))
   }
 
   ys

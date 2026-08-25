@@ -2,7 +2,7 @@ extern crate dual_balanced_ternary;
 use core::convert::TryInto;
 use std::convert::TryFrom;
 
-use dual_balanced_ternary::{ternary, DualBalancedTernary, DualBalancedTernaryDigit::*};
+use dual_balanced_ternary::{DualBalancedTernary, DualBalancedTernaryDigit::*, ternary};
 
 #[test]
 fn to_buffer() -> Result<(), String> {

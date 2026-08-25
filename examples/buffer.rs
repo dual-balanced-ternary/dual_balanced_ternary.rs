@@ -1,4 +1,4 @@
-use dual_balanced_ternary::{ternary, DualBalancedTernary};
+use dual_balanced_ternary::{DualBalancedTernary, ternary};
 use std::convert::{TryFrom, TryInto};
 
 pub fn main() -> Result<(), String> {

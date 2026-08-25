@@ -1,7 +1,7 @@
 extern crate dual_balanced_ternary;
 
 use dual_balanced_ternary::complex::ComplexXy;
-use dual_balanced_ternary::{ternary, DualBalancedTernary, DualBalancedTernaryDigit::*};
+use dual_balanced_ternary::{DualBalancedTernary, DualBalancedTernaryDigit::*, ternary};
 
 #[test]
 fn equality() {
@@ -133,10 +133,11 @@ fn test_divide() {
   // # not exact division
   println!("{}", ternary("&743317") / ternary("&616"));
 
-  // there was a bug in mutiply conjugated values
+  // Regression: multiplication by the conjugate must use the corrected
+  // balanced carry table (the pre-0.2 hand-written table produced 1.3313…).
   assert_eq!(
     ternary("&9.41658555559") / ternary("&9.51372555559"),
-    ternary("&1.653732945268634852684471755515159")
+    ternary("&1.65374713977323481664837579119191")
   );
 }
 
