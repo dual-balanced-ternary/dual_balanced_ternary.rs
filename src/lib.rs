@@ -36,9 +36,11 @@
 
 pub mod complex;
 pub mod digit;
+pub mod f9;
 pub mod primes;
 
 pub use digit::DualBalancedTernaryDigit;
+pub use f9::F9;
 pub use primes::{DIV_PRECISION, DualBalancedTernary};
 
 use std::str::FromStr;

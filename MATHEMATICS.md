@@ -99,13 +99,26 @@ Teichmüller 代表；所以普通 DBT 乘法仍会产生进位。
 
 ## 4. 值得继续实现的四个小项目
 
-1. `F9` 模块：显式提供无进位的 `add_mod_3`、`mul_mod_3`、逆元和多项式。
+1. `F9` 模块：已实现类型安全的无进位加减乘、幂、逆元、除法、Frobenius、
+   域迹和域范数；下一步可以在其上增加多项式与纠错码实验。
 2. `SpatialKey`：固定深度、边界盒、父子格、邻居和 Morton/Hilbert 排序层。
 3. `GaussianInteger`：只允许整数位，提供精确范数、gcd 与高斯素数分解实验。
 4. `Dbt3Adic<N>`：固定 `N` 个低位，所有运算模 `3^N`，用于同余与自动机。
 
-其中 `F9` 和固定深度空间键最贴近现有代码，数据结构也最小；3-adic 与高斯
+其中 `F9` 的标量层已经落地，固定深度空间键仍最贴近现有表示；3-adic 与高斯
 素数方向更偏研究型，但能真正利用这套表示法独有的“有限域个位 + 多位进位”。
+
+更具体的 API 扩展顺序可以是：
+
+1. `F9Polynomial::{evaluate, div_rem, gcd}`，再实现长度不超过 9 的小型
+   Reed–Solomon 编解码实验；原始 Reed–Solomon 构造正是对有限域上的多项式
+   在域元素处求值。
+2. `GaussianInteger::{div_rem, gcd, extended_gcd}`；高斯整数以范数支持欧几里得
+   除法，所以还可自然得到 Bézout 系数、互素判定和模逆元。
+3. `SpatialKey::{parent, children, neighbors, bounds}`，并把“数值的加法”和
+   “固定深度网格键的邻接”分成两个类型，避免边界与精度语义混在一起。
+4. `Dbt3Adic<N>::valuation`、模 `3^N` 逆元和逐位提升；这一层的接近关系由
+   低位共同前缀决定，适合有限自动机，而不是欧氏坐标距离。
 
 ## 5. 当前实现边界
 
@@ -122,3 +135,7 @@ Teichmüller 代表；所以普通 DBT 乘法仍会产生进位。
 - [Canonical number systems for complex integers (1975)](https://acta.bibl.u-szeged.hu/14536/)
 - [Number systems over orders](https://pmc.ncbi.nlm.nih.gov/articles/PMC6190796/)
 - [On a generalization of the radix representation — a survey](https://math.tsukuba.ac.jp/~akiyama/papers/cnsams.pdf)
+- [Polynomial Codes Over Certain Finite Fields (Reed–Solomon, 1960)](https://doi.org/10.1137/0108018)
+- [A Division Algorithm for the Gaussian Integers' Minimal Euclidean Function](https://arxiv.org/abs/2502.21136)
+- [Discrete phase space based on finite fields](https://arxiv.org/abs/quant-ph/0401155)
+- [Automata as p-adic Dynamical Systems](https://arxiv.org/abs/1709.02644)

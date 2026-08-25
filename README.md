@@ -30,6 +30,30 @@ assert_eq!(b.to_string(), "&8");
 Use `ternary("&…")` for trusted literals, `try_ternary`/`FromStr` for input,
 and `checked_div` when the divisor might be zero.
 
+Exact integer coordinates and exponentiation do not pass through floating
+point:
+
+```rust
+use dual_balanced_ternary::DualBalancedTernary;
+
+let z = DualBalancedTernary::from_i64_coordinates(4, 6);
+assert_eq!(z.to_string(), "&143");
+assert_eq!(z.pow(2).to_string(), "&36289");
+```
+
+## The one-digit field
+
+`F9` makes carry-free, modulo-3 digit arithmetic explicit:
+
+```rust
+use dual_balanced_ternary::{DualBalancedTernaryDigit::Dbt8, F9};
+
+let generator = F9::new(Dbt8); // 1 + i
+assert_eq!(generator.pow(8), F9::ONE);
+assert_eq!(generator * generator.inverse().unwrap(), F9::ONE);
+assert_eq!(generator.frobenius(), generator.pow(3));
+```
+
 ## Binary format
 
 The stable legacy format is:
@@ -56,6 +80,7 @@ cargo fmt -- --check
 cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 cargo doc --no-deps
+cargo bench --bench arithmetic
 ```
 
 Migrated from the original [Nim implementation](https://github.com/dual-balanced-ternary/dual-balanced-ternary.nim).

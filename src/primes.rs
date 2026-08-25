@@ -15,6 +15,28 @@ const ZERO: DualBalancedTernary = DualBalancedTernary {
   fractional: vec![],
 };
 
+fn canonical_len(digits: &[DualBalancedTernaryDigit]) -> usize {
+  digits.iter().rposition(|digit| *digit != Dbt5).map_or(0, |index| index + 1)
+}
+
+/// Reduces an arbitrary component to `3 * carry + unit`, with a centered unit.
+fn balanced_reduce(value: i64) -> (i64, i8) {
+  let unit = (value + 1).rem_euclid(3) - 1;
+  ((value - unit) / 3, unit as i8)
+}
+
+/// One exact balanced-ternary step without overflowing on `i64::MIN`.
+fn balanced_integer_step(value: i64) -> (i64, i8) {
+  match value % 3 {
+    -2 => (value / 3 - 1, 1),
+    -1 => (value / 3, -1),
+    0 => (value / 3, 0),
+    1 => (value / 3, 1),
+    2 => (value / 3 + 1, -1),
+    _ => unreachable!("remainder modulo 3 is outside -2..=2"),
+  }
+}
+
 /// Dual Balanced Ternary represented in limited accuracy.
 #[derive(Debug, Clone)]
 pub struct DualBalancedTernary {
@@ -72,10 +94,10 @@ impl TryFrom<f64> for DualBalancedTernary {
       if left == 0 {
         // nothing
       } else if left == 1 {
-        result = result.add_at(idx, Dbt3);
+        result.add_assign_at(idx, Dbt3);
       } else if left == 2 {
-        result = result.add_at(idx + 1, Dbt3);
-        result = result.add_at(idx, Dbt7);
+        result.add_assign_at(idx + 1, Dbt3);
+        result.add_assign_at(idx, Dbt7);
       } else {
         unreachable!("unexpected reminder: {} from {}", left, x)
       }
@@ -91,10 +113,10 @@ impl TryFrom<f64> for DualBalancedTernary {
       if left == 0.0 {
         // nothing
       } else if (left - 1.0).abs() < f64::EPSILON {
-        result = result.add_at(f_idx, Dbt3);
+        result.add_assign_at(f_idx, Dbt3);
       } else if (left - 2.0).abs() < f64::EPSILON {
-        result = result.add_at(f_idx + 1, Dbt3);
-        result = result.add_at(f_idx, Dbt7);
+        result.add_assign_at(f_idx + 1, Dbt3);
+        result.add_assign_at(f_idx, Dbt7);
       } else {
         return Err(format!("unexpected carry: {} from {}", left, fractional_part));
       }
@@ -268,6 +290,81 @@ impl TryFrom<&Vec<u8>> for DualBalancedTernary {
 }
 
 impl DualBalancedTernary {
+  fn normalize_mut(&mut self) {
+    self.integral.truncate(canonical_len(&self.integral));
+    self.fractional.truncate(canonical_len(&self.fractional));
+  }
+
+  fn digit_at(&self, exponent: i64) -> DualBalancedTernaryDigit {
+    if exponent >= 0 {
+      self.integral.get(exponent as usize).copied().unwrap_or(Dbt5)
+    } else {
+      self.fractional.get((-1 - exponent) as usize).copied().unwrap_or(Dbt5)
+    }
+  }
+
+  fn set_digit(&mut self, exponent: i64, digit: DualBalancedTernaryDigit) {
+    if exponent >= 0 {
+      let index = exponent as usize;
+      if self.integral.len() <= index {
+        self.integral.resize(index + 1, Dbt5);
+      }
+      self.integral[index] = digit;
+    } else {
+      let index = (-1 - exponent) as usize;
+      if self.fractional.len() <= index {
+        self.fractional.resize(index + 1, Dbt5);
+      }
+      self.fractional[index] = digit;
+    }
+  }
+
+  fn add_assign_at(&mut self, mut exponent: i64, mut digit: DualBalancedTernaryDigit) {
+    while digit != Dbt5 {
+      let (x, y) = self.digit_at(exponent).coordinates();
+      let (dx, dy) = digit.coordinates();
+      let (carry_x, unit_x) = balanced_reduce(i64::from(x + dx));
+      let (carry_y, unit_y) = balanced_reduce(i64::from(y + dy));
+      self.set_digit(exponent, DualBalancedTernaryDigit::from_coordinates(unit_x, unit_y));
+      digit = DualBalancedTernaryDigit::from_coordinates(carry_x as i8, carry_y as i8);
+      exponent += 1;
+    }
+  }
+
+  fn digit_pairs(&self) -> impl Iterator<Item = (i64, DualBalancedTernaryDigit)> + '_ {
+    self
+      .integral
+      .iter()
+      .enumerate()
+      .map(|(index, digit)| (index as i64, *digit))
+      .chain(self.fractional.iter().enumerate().map(|(index, digit)| (-1 - index as i64, *digit)))
+  }
+
+  fn exponent_bounds(&self) -> Option<(i64, i64)> {
+    self
+      .digit_pairs()
+      .filter(|(_, digit)| *digit != Dbt5)
+      .map(|(exponent, _)| exponent)
+      .fold(None, |bounds, exponent| match bounds {
+        None => Some((exponent, exponent)),
+        Some((minimum, maximum)) => Some((minimum.min(exponent), maximum.max(exponent))),
+      })
+  }
+
+  fn from_exponent_digits(minimum: i64, digits: Vec<DualBalancedTernaryDigit>) -> Self {
+    let mut result = Self {
+      integral: vec![],
+      fractional: vec![],
+    };
+    for (offset, digit) in digits.into_iter().enumerate() {
+      if digit != Dbt5 {
+        result.set_digit(minimum + offset as i64, digit);
+      }
+    }
+    result.normalize_mut();
+    result
+  }
+
   /// Creates a DBT value from Cartesian coordinates.
   ///
   /// # Panics
@@ -283,86 +380,75 @@ impl DualBalancedTernary {
     (x, y).try_into()
   }
 
-  // TODO positive number to make value larger, not in use yet
+  /// Creates a DBT value exactly from integer Cartesian coordinates.
+  ///
+  /// This avoids the precision limit of converting through `f64`.
+  pub fn from_i64_coordinates(mut x: i64, mut y: i64) -> Self {
+    let mut integral = Vec::new();
+    while x != 0 || y != 0 {
+      let (next_x, unit_x) = balanced_integer_step(x);
+      let (next_y, unit_y) = balanced_integer_step(y);
+      integral.push(DualBalancedTernaryDigit::from_coordinates(unit_x, unit_y));
+      x = next_x;
+      y = next_y;
+    }
+    Self {
+      integral,
+      fractional: vec![],
+    }
+  }
+
+  /// Raises this value to a non-negative integer power exactly.
+  pub fn pow(&self, mut exponent: u32) -> Self {
+    let mut base = self.clone();
+    let mut result = Self::from_i64_coordinates(0, 1);
+    while exponent > 0 {
+      if exponent & 1 == 1 {
+        result = result * base.clone();
+      }
+      exponent >>= 1;
+      if exponent > 0 {
+        base = base.clone() * base;
+      }
+    }
+    result
+  }
+
+  /// Multiplies by an integer power of the radix: `self * 3^n`.
   pub fn move_by(&self, n: i64) -> DualBalancedTernary {
-    let mut b = self.to_owned();
-    match n {
-      0 => return self.to_owned(),
-      n if n > 0 => {
-        for _i in 0..n {
-          if b.fractional.is_empty() {
-            b.integral.insert(0, Dbt5);
-          } else {
-            b.integral.insert(0, b.fractional.to_owned()[0]);
-            b.fractional.remove(0);
-          }
-        }
-      }
-      _ => {
-        // n < 0
-        for _i in 0..(-n) {
-          if b.integral.is_empty() {
-            b.fractional.insert(0, Dbt5);
-          } else {
-            b.fractional.insert(0, b.integral[0]);
-            b.integral.remove(0);
-          }
-        }
-      }
-    };
-    b
+    if n == 0 {
+      return self.clone();
+    }
+
+    let amount = usize::try_from(n.unsigned_abs()).expect("shift does not fit in memory");
+    let mut result = self.clone();
+    if n > 0 {
+      let moved_count = amount.min(result.fractional.len());
+      let moved: Vec<_> = result.fractional.drain(..moved_count).collect();
+      let mut integral = Vec::with_capacity(result.integral.len().saturating_add(amount));
+      integral.resize(amount - moved_count, Dbt5);
+      integral.extend(moved.into_iter().rev());
+      integral.append(&mut result.integral);
+      result.integral = integral;
+    } else {
+      let moved_count = amount.min(result.integral.len());
+      let moved: Vec<_> = result.integral.drain(..moved_count).collect();
+      let mut fractional = Vec::with_capacity(result.fractional.len().saturating_add(amount));
+      fractional.resize(amount - moved_count, Dbt5);
+      fractional.extend(moved.into_iter().rev());
+      fractional.append(&mut result.fractional);
+      result.fractional = fractional;
+    }
+    result.normalize_mut();
+    result
   }
 
   // 0 for unit position, -1 for first fractional position
   pub fn add_at(&self, idx: i64, d: DualBalancedTernaryDigit) -> DualBalancedTernary {
-    // echo "to add: ", a, " ", d, " at: ", idx
-    if d == Dbt5 {
-      return self.to_owned();
-    }
-    let mut b = self.to_owned();
-    if idx >= 0 {
-      if idx > self.integral.len() as i64 - 1 {
-        let mut times = idx - self.integral.len() as i64 + 1;
-        while times > 0 {
-          b.integral.push(Dbt5);
-          times -= 1;
-        }
-        // # echo b.integral, " ", idx, " times ", times
-
-        b.integral[idx as usize] = d;
-        b
-      } else {
-        let (carry, unit) = self.integral[idx as usize] + d;
-        b.integral[idx as usize] = unit;
-        // echo "sum: ", sum
-        if carry != Dbt5 {
-          // echo "has carry in integral: ", sum
-          b.add_at(idx + 1, carry)
-        } else {
-          b
-        }
-      }
-    } else {
-      let f_idx = -1 - idx;
-      if f_idx > self.fractional.len() as i64 - 1 {
-        let mut times = f_idx - self.fractional.len() as i64 + 1;
-        while times > 0 {
-          b.fractional.push(Dbt5);
-          times -= 1;
-        }
-        b.fractional[f_idx as usize] = d;
-        b
-      } else {
-        let (carry, unit) = self.fractional[f_idx as usize] + d;
-        b.fractional[f_idx as usize] = unit;
-        if carry != Dbt5 {
-          // echo "has carry in fractional: ", sum
-          b.add_at(idx + 1, carry)
-        } else {
-          b
-        }
-      }
-    }
+    let mut result = self.clone();
+    result.add_assign_at(idx, d);
+    result.normalize_mut();
+    result
   }
 
   /// keep value of 1 direction and flip 3 direction
@@ -440,22 +526,13 @@ impl DualBalancedTernary {
   }
 
   pub fn get_first_digit(&self) -> (DualBalancedTernaryDigit, i64) {
-    let a2 = self.strip_empty_tails();
-    if !a2.integral.is_empty() {
-      (
-        *a2.integral.last().expect("integral is known to be non-empty"),
-        a2.integral.len() as i64 - 1,
-      )
-    } else if a2.fractional.is_empty() {
-      (Dbt5, 0)
-    } else {
-      for (idx, item) in a2.fractional.iter().enumerate() {
-        if item != &Dbt5 {
-          return (item.to_owned(), -1 - idx as i64);
-        }
-      }
-      unreachable!("TODO get first")
+    if let Some(index) = self.integral.iter().rposition(|digit| *digit != Dbt5) {
+      return (self.integral[index], index as i64);
     }
+    if let Some(index) = self.fractional.iter().position(|digit| *digit != Dbt5) {
+      return (self.fractional[index], -1 - index as i64);
+    }
+    (Dbt5, 0)
   }
 
   /// only works for paths containing 1,5,9
@@ -546,17 +623,9 @@ impl DualBalancedTernary {
 
   // 5 is the zero point of digits, can be removed at end
   pub fn strip_empty_tails(&self) -> DualBalancedTernary {
-    if self.integral.last().is_none_or(|digit| *digit != Dbt5) && self.fractional.last().is_none_or(|digit| *digit != Dbt5) {
-      return self.to_owned();
-    }
-    let mut y = self.to_owned();
-    while y.integral.last() == Some(&Dbt5) {
-      y.integral.pop();
-    }
-    while y.fractional.last() == Some(&Dbt5) {
-      y.fractional.pop();
-    }
-    y
+    let mut result = self.clone();
+    result.normalize_mut();
+    result
   }
 
   pub fn pairs(&self) -> Vec<(i64, DualBalancedTernaryDigit)> {
@@ -571,8 +640,7 @@ impl DualBalancedTernary {
   }
 
   pub fn is_zero(&self) -> bool {
-    let a2 = self.strip_empty_tails();
-    a2.integral.is_empty() && a2.fractional.is_empty()
+    self.integral.iter().chain(&self.fractional).all(|digit| *digit == Dbt5)
   }
 
   /// internally it relies on 1-directional arithmetic for calculation
@@ -620,49 +688,35 @@ impl FromStr for DualBalancedTernary {
     if content.is_empty() {
       return Err(String::from("DBT literal requires at least one digit or a radix point"));
     }
-    let pieces = content.split('.').collect::<Vec<&str>>();
-    if !pieces.is_empty() {
-      let chunk = pieces[0];
-      for c in chunk.chars() {
-        result.integral.insert(0, c.try_into()?);
-      }
+    let mut pieces = content.split('.');
+    let integral = pieces.next().expect("split always returns the first piece");
+    result.integral = integral
+      .chars()
+      .rev()
+      .map(DualBalancedTernaryDigit::try_from)
+      .collect::<Result<_, _>>()?;
+    if let Some(fractional) = pieces.next() {
+      result.fractional = fractional
+        .chars()
+        .map(DualBalancedTernaryDigit::try_from)
+        .collect::<Result<_, _>>()?;
     }
-    if pieces.len() == 2 {
-      let chunk = pieces[1];
-      for c in chunk.chars() {
-        result.fractional.push(c.try_into()?);
-      }
-    }
-    if pieces.len() > 2 {
+    if pieces.next().is_some() {
       return Err(format!("invalid format for a ternary value: {}", s));
     }
-    result = result.strip_empty_tails();
+    result.normalize_mut();
     Ok(result)
   }
 }
 
 impl PartialEq for DualBalancedTernary {
   fn eq(&self, other: &Self) -> bool {
-    let a2 = self.strip_empty_tails();
-    let b2 = other.strip_empty_tails();
-    if a2.integral.len() != b2.integral.len() {
-      return false;
-    }
-    if a2.fractional.len() != b2.fractional.len() {
-      return false;
-    }
-    for (idx, item) in a2.integral.iter().enumerate() {
-      if &b2.integral[idx] != item {
-        return false;
-      }
-    }
-    for (idx, item) in a2.fractional.iter().enumerate() {
-      if &b2.fractional[idx] != item {
-        return false;
-      }
-    }
-
-    true
+    let self_integral_len = canonical_len(&self.integral);
+    let other_integral_len = canonical_len(&other.integral);
+    let self_fractional_len = canonical_len(&self.fractional);
+    let other_fractional_len = canonical_len(&other.fractional);
+    self.integral[..self_integral_len] == other.integral[..other_integral_len]
+      && self.fractional[..self_fractional_len] == other.fractional[..other_fractional_len]
   }
 }
 impl Eq for DualBalancedTernary {}
@@ -671,12 +725,11 @@ impl Hash for DualBalancedTernary {
   fn hash<H: Hasher>(&self, state: &mut H) {
     "DualBalancedTernary".hash(state);
 
-    let a2 = self.strip_empty_tails();
-    for item in a2.integral {
+    for item in &self.integral[..canonical_len(&self.integral)] {
       item.hash(state)
     }
     (".").hash(state);
-    for item in a2.fractional {
+    for item in &self.fractional[..canonical_len(&self.fractional)] {
       item.hash(state)
     }
   }
@@ -686,17 +739,15 @@ impl Add for DualBalancedTernary {
   type Output = Self;
 
   fn add(self, b: Self) -> Self {
-    let mut a2 = self;
-    for (idx, item) in b.integral.iter().enumerate() {
-      // echo "adding: ", a2, " ", idx, " ", item
-      a2 = a2.add_at(idx as i64, item.to_owned());
+    let mut result = self;
+    for (idx, item) in b.integral.into_iter().enumerate() {
+      result.add_assign_at(idx as i64, item);
     }
-    for (idx, item) in b.fractional.iter().enumerate() {
-      // echo "f adding: ", a2, " ", idx, " ", item
-      a2 = a2.add_at(-1 - idx as i64, item.to_owned());
+    for (idx, item) in b.fractional.into_iter().enumerate() {
+      result.add_assign_at(-1 - idx as i64, item);
     }
-    // echo "result: ", a2
-    a2.strip_empty_tails()
+    result.normalize_mut();
+    result
   }
 }
 
@@ -711,21 +762,46 @@ impl Mul for DualBalancedTernary {
   type Output = Self;
 
   fn mul(self, other: Self) -> Self::Output {
-    let mut result = DualBalancedTernary {
-      integral: vec![],
-      fractional: vec![],
+    let Some((self_minimum, self_maximum)) = self.exponent_bounds() else {
+      return ZERO;
     };
-    for (a_idx, a_item) in self.pairs() {
-      for (b_idx, b_item) in other.pairs() {
-        let (carry, unit) = a_item * b_item;
-        result = result.add_at(a_idx + b_idx, unit);
-        if carry != Dbt5 {
-          result = result.add_at(a_idx + b_idx + 1, carry);
-        }
-        // echo fmt"multiply a:{a_item} b:{b_item}, v:{v}, result:{result}"
+    let Some((other_minimum, other_maximum)) = other.exponent_bounds() else {
+      return ZERO;
+    };
+    let minimum = self_minimum + other_minimum;
+    let maximum = self_maximum + other_maximum;
+    let accumulator_len = usize::try_from(maximum - minimum + 1).expect("DBT product is too large");
+    let mut xs = vec![0_i64; accumulator_len];
+    let mut ys = vec![0_i64; accumulator_len];
+
+    for (left_exponent, left) in self.digit_pairs().filter(|(_, digit)| *digit != Dbt5) {
+      let (left_x, left_y) = left.coordinates();
+      for (right_exponent, right) in other.digit_pairs().filter(|(_, digit)| *digit != Dbt5) {
+        let (right_x, right_y) = right.coordinates();
+        let index = usize::try_from(left_exponent + right_exponent - minimum).expect("product exponent is negative");
+        xs[index] += i64::from(left_y * right_x + left_x * right_y);
+        ys[index] += i64::from(left_y * right_y - left_x * right_x);
       }
     }
-    result.strip_empty_tails()
+
+    let mut digits = Vec::with_capacity(accumulator_len + 1);
+    let mut index = 0;
+    while index < xs.len() {
+      let (carry_x, unit_x) = balanced_reduce(xs[index]);
+      let (carry_y, unit_y) = balanced_reduce(ys[index]);
+      digits.push(DualBalancedTernaryDigit::from_coordinates(unit_x, unit_y));
+      if carry_x != 0 || carry_y != 0 {
+        if index + 1 == xs.len() {
+          xs.push(carry_x);
+          ys.push(carry_y);
+        } else {
+          xs[index + 1] += carry_x;
+          ys[index + 1] += carry_y;
+        }
+      }
+      index += 1;
+    }
+    Self::from_exponent_digits(minimum, digits)
   }
 }
 
