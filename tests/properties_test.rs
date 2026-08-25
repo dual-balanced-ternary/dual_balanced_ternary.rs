@@ -122,3 +122,46 @@ fn checked_division_reports_zero() {
   assert_eq!(ternary("&11").checked_div(&ternary("&19")).unwrap(), ternary("&19"));
   assert!(ternary("&1").checked_div(&ternary("&5")).is_err());
 }
+
+fn reference_add(mut left: DualBalancedTernary, right: &DualBalancedTernary) -> DualBalancedTernary {
+  for (exponent, digit) in right.pairs() {
+    left = left.add_at(exponent, digit);
+  }
+  left.strip_empty_tails()
+}
+
+fn reference_multiply(left: &DualBalancedTernary, right: &DualBalancedTernary) -> DualBalancedTernary {
+  let mut result = ternary("&5");
+  for (left_exponent, left_digit) in left.pairs() {
+    for (right_exponent, right_digit) in right.pairs() {
+      let exponent = left_exponent + right_exponent;
+      let (carry, unit) = left_digit * right_digit;
+      result = result.add_at(exponent, unit);
+      result = result.add_at(exponent + 1, carry);
+    }
+  }
+  result.strip_empty_tails()
+}
+
+#[test]
+fn optimized_arithmetic_matches_the_digit_reference() {
+  let values = [
+    "&5",
+    "&1",
+    "&9",
+    "&8",
+    "&12346789",
+    "&98764321",
+    "&1.2346789",
+    "&.8764321",
+    "&61827364.91827364",
+  ]
+  .map(ternary);
+
+  for left in &values {
+    for right in &values {
+      assert_eq!(left.clone() + right.clone(), reference_add(left.clone(), right));
+      assert_eq!(left.clone() * right.clone(), reference_multiply(left, right));
+    }
+  }
+}

@@ -159,7 +159,7 @@ impl DualBalancedTernaryDigit {
     }
   }
 
-  const fn from_coordinates(x: i8, y: i8) -> Self {
+  pub(crate) const fn from_coordinates(x: i8, y: i8) -> Self {
     match (x, y) {
       (0, 1) => Dbt1,
       (-1, -1) => Dbt2,
